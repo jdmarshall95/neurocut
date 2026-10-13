@@ -1,0 +1,13 @@
+NeuroCut
+Copyright 2026 NeuroCut Contributors
+
+This product includes software developed by NeuroCut Contributors.
+
+Third-party components (see their respective licenses):
+- FastAPI, Uvicorn, Pydantic — MIT / BSD
+- faster-whisper — MIT
+- FFmpeg — LGPL/GPL (system dependency; not bundled as proprietary code)
+- google-genai — Apache-2.0
+- React, Vite — MIT
+- Adobe CEP / Premiere plugin APIs — Adobe proprietary (plugin code in this
+  repository is Apache-2.0; Adobe products remain under Adobe terms)

@@ -1,0 +1,12 @@
+# Pragmatic defaults for a young OSS repo — tighten gradually.
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = ["E", "F"]
+ignore = [
+  "E501",  # line length — gradual cleanup
+]
+
+[lint.per-file-ignores]
+"__init__.py" = ["F401"]

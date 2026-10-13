@@ -1,0 +1,7 @@
+# Phase 13: optional GigaAM offline STT via sherpa-onnx.
+# Install alongside the base requirements to enable STT_ENGINE=gigaam:
+#   pip install -r requirements.txt -r requirements-gigaam.txt
+# Models are NOT bundled — download them separately (see README):
+#   - GigaAM CTC package published by sherpa-onnx (model.int8.onnx + tokens.txt)
+#   - Silero VAD:  silero_vad.onnx
+sherpa-onnx>=1.10.0

@@ -1,0 +1,52 @@
+services:
+  api:
+    build:
+      context: .
+      args:
+        INSTALL_SILERO: ${INSTALL_SILERO:-0}
+        INSTALL_GIGAAM: ${INSTALL_GIGAAM:-0}
+    container_name: neurocut-api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+      STORAGE_DIR: /app/storage
+      WHISPER_DEVICE: cpu
+      WHISPER_COMPUTE_TYPE: int8
+      STT_ENGINE: ${STT_ENGINE:-whisper}
+      SILERO_LANGUAGE: ${SILERO_LANGUAGE:-en}
+      SILERO_DEVICE: cpu
+      TORCH_HOME: /app/.cache/torch
+      GIGAAM_MODEL_DIR: /app/.cache/models/gigaam-ru
+      GIGAAM_VAD_MODEL: /app/.cache/models/silero_vad.onnx
+    volumes:
+      - neurocut-storage:/app/storage
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8000}
+    container_name: neurocut-frontend
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  neurocut-storage:

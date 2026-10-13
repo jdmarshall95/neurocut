@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeuroCut</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="panel">
+    <header>
+      <h1>NeuroCut</h1>
+      <p class="subtitle">AI editing right in Premiere</p>
+    </header>
+
+    <section>
+      <label for="apiUrl">API server</label>
+      <input id="apiUrl" type="text" value="http://127.0.0.1:8000" />
+    </section>
+
+    <section>
+      <label for="mediaPath">Local video path</label>
+      <div class="row">
+        <input id="mediaPath" type="text" placeholder="/path/to/video.mp4" />
+        <button id="browseBtn" type="button">Browse</button>
+      </div>
+    </section>
+
+    <section>
+      <label for="prompt">Edit brief</label>
+      <textarea id="prompt" rows="6" placeholder="Describe the desired edit..."></textarea>
+    </section>
+
+    <section class="actions">
+      <button id="generateBtn" type="button" class="primary">Generate edit</button>
+      <button id="applyBtn" type="button" disabled>Apply to timeline</button>
+    </section>
+
+    <section>
+      <div id="statusBox" class="status idle">Ready</div>
+      <div class="progress">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+      <p id="jobInfo" class="muted"></p>
+    </section>
+  </div>
+
+  <script src="js/CSInterface.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

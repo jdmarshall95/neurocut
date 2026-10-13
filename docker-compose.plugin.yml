@@ -1,0 +1,9 @@
+services:
+  api:
+    environment:
+      PLUGIN_ENABLED: "true"
+      PLUGIN_CORS_ALLOW_ALL: "true"
+      PLUGIN_COPY_MEDIA_TO_STORAGE: "false"
+      PLUGIN_ALLOWED_ROOTS: ${PLUGIN_MEDIA_ROOT:?set PLUGIN_MEDIA_ROOT to your media folder}
+    volumes:
+      - ${PLUGIN_MEDIA_ROOT:?set PLUGIN_MEDIA_ROOT to your media folder}:${PLUGIN_MEDIA_ROOT}:ro

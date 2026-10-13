@@ -1,0 +1,156 @@
+stages:
+  - build
+  - release
+  - tag
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  # GitLab registry: <registry>/<group>/<project>/<image>
+  API_IMAGE: "$CI_REGISTRY_IMAGE/api"
+  FRONTEND_IMAGE: "$CI_REGISTRY_IMAGE/frontend"
+  # Heavy STT models are not pulled in CI by default (torch.hub needs network and time).
+  INSTALL_SILERO: "0"
+  INSTALL_GIGAAM: "0"
+  # API base URL for the frontend. Override via project CI/CD variable.
+  FRONTEND_API_BASE_URL: "http://127.0.0.1:8000"
+
+# ---------------------------------------------------------------------------
+# Shared docker-in-docker image build template.
+# ---------------------------------------------------------------------------
+.docker:
+  image: docker:27-cli
+  services:
+    - docker:27-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
+# ---------------------------------------------------------------------------
+# BUILD: backend (FastAPI) + frontend (React/nginx).
+# On branches/MRs — commit SHA tag (+ latest on default branch).
+# On git tag v* — version tag + latest.
+# ---------------------------------------------------------------------------
+build:api:
+  extends: .docker
+  stage: build
+  script:
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        VERSION="$CI_COMMIT_TAG"
+      else
+        VERSION="$CI_COMMIT_SHORT_SHA"
+      fi
+    - echo "Building API image ${API_IMAGE}:${VERSION}"
+    - >
+      docker build
+      --pull
+      --build-arg INSTALL_SILERO="$INSTALL_SILERO"
+      --build-arg INSTALL_GIGAAM="$INSTALL_GIGAAM"
+      --cache-from "${API_IMAGE}:latest"
+      -t "${API_IMAGE}:${VERSION}"
+      -f Dockerfile .
+    - docker push "${API_IMAGE}:${VERSION}"
+    - |
+      if [ "$CI_COMMIT_REF_NAME" = "$CI_DEFAULT_BRANCH" ] || [ -n "$CI_COMMIT_TAG" ]; then
+        docker tag "${API_IMAGE}:${VERSION}" "${API_IMAGE}:latest"
+        docker push "${API_IMAGE}:latest"
+      fi
+  rules:
+    - if: '$CI_COMMIT_TAG'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+build:frontend:
+  extends: .docker
+  stage: build
+  script:
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        VERSION="$CI_COMMIT_TAG"
+      else
+        VERSION="$CI_COMMIT_SHORT_SHA"
+      fi
+    - echo "Building frontend image ${FRONTEND_IMAGE}:${VERSION}"
+    - >
+      docker build
+      --pull
+      --build-arg VITE_API_BASE_URL="$FRONTEND_API_BASE_URL"
+      --cache-from "${FRONTEND_IMAGE}:latest"
+      -t "${FRONTEND_IMAGE}:${VERSION}"
+      -f frontend/Dockerfile frontend
+    - docker push "${FRONTEND_IMAGE}:${VERSION}"
+    - |
+      if [ "$CI_COMMIT_REF_NAME" = "$CI_DEFAULT_BRANCH" ] || [ -n "$CI_COMMIT_TAG" ]; then
+        docker tag "${FRONTEND_IMAGE}:${VERSION}" "${FRONTEND_IMAGE}:latest"
+        docker push "${FRONTEND_IMAGE}:latest"
+      fi
+  rules:
+    - if: '$CI_COMMIT_TAG'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+# ---------------------------------------------------------------------------
+# RELEASE: creates a GitLab Release for git tag v* after a successful build.
+# ---------------------------------------------------------------------------
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - build:api
+    - build:frontend
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+  script:
+    - echo "Creating GitLab Release for $CI_COMMIT_TAG"
+  release:
+    tag_name: "$CI_COMMIT_TAG"
+    name: "Release $CI_COMMIT_TAG"
+    description: |
+      Automated NeuroCut release `$CI_COMMIT_TAG`.
+
+      Images in the registry:
+      - `$API_IMAGE:$CI_COMMIT_TAG`
+      - `$FRONTEND_IMAGE:$CI_COMMIT_TAG`
+
+# ---------------------------------------------------------------------------
+# TAG: manually bump the next release tag (semver).
+# Runs on the default branch. Requires CI/CD variable RELEASE_TOKEN
+# (Project/Group Access Token with api scope and write_repository).
+# Pushing the tag starts a pipeline with build + release.
+# ---------------------------------------------------------------------------
+tag:release:
+  stage: tag
+  image: alpine:3.20
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+  variables:
+    # Bump level: patch | minor | major. Override when triggering the job.
+    BUMP: "patch"
+  before_script:
+    - apk add --no-cache git curl jq
+  script:
+    - git config user.email "ci@rackunit.ru"
+    - git config user.name "GitLab CI"
+    - git fetch --tags --quiet
+    - |
+      LATEST=$(git tag -l 'v*.*.*' | sort -V | tail -n1)
+      if [ -z "$LATEST" ]; then LATEST="v0.0.0"; fi
+      echo "Latest tag: $LATEST"
+      VER=${LATEST#v}
+      MAJOR=$(echo "$VER" | cut -d. -f1)
+      MINOR=$(echo "$VER" | cut -d. -f2)
+      PATCH=$(echo "$VER" | cut -d. -f3)
+      case "$BUMP" in
+        major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+        minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+        patch) PATCH=$((PATCH+1)) ;;
+        *) echo "Unknown BUMP=$BUMP"; exit 1 ;;
+      esac
+      NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+      echo "New tag: $NEW_TAG"
+      # Push tag via API so tag pipelines (build + release) run.
+      curl --fail --silent --show-error \
+        --request POST \
+        --header "PRIVATE-TOKEN: $RELEASE_TOKEN" \
+        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/tags?tag_name=${NEW_TAG}&ref=${CI_COMMIT_SHA}" \
+        | jq -r '.name as $n | "Tag \($n) created"'

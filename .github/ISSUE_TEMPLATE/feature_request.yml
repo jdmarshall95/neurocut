@@ -1,0 +1,42 @@
+name: Feature request
+description: Propose an improvement for AI video editing, STT, or export
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What editor workflow is painful today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How should NeuroCut behave?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Montage / LLM prompts
+        - STT engine
+        - Scene detection
+        - Export format
+        - UI / UX
+        - Premiere plugin
+        - Docs / examples
+        - Other
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to open a PR for this

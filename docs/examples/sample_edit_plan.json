@@ -1,0 +1,32 @@
+{
+  "clips": [
+    {
+      "start_sec": 4.4,
+      "end_sec": 8.0,
+      "track": 1,
+      "reason": "Clear on-mic intro aligned to shot boundary"
+    },
+    {
+      "start_sec": 23.0,
+      "end_sec": 27.0,
+      "track": 1,
+      "reason": "Key announcement beat"
+    },
+    {
+      "start_sec": 52.0,
+      "end_sec": 56.0,
+      "track": 1,
+      "reason": "Thank-you / closing segment"
+    }
+  ],
+  "markers": [
+    {
+      "time_sec": 4.4,
+      "comment": "Start of selected beats"
+    },
+    {
+      "time_sec": 52.0,
+      "comment": "Closing"
+    }
+  ]
+}

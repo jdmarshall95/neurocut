@@ -1,0 +1,10 @@
+# Phase 13: optional Silero STT engine (local offline STT for en/de/es/ua).
+# Install alongside the base requirements to enable STT_ENGINE=silero:
+#   pip install -r requirements.txt -r requirements-silero.txt
+# Silero models are fetched on first use via torch.hub.
+#
+# CPU wheels (smaller Docker image); for GPU use default PyPI torch.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.2.0
+torchaudio>=2.2.0
+omegaconf>=2.3.0

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xmeml>
+<xmeml version="4">
+  <sequence id="sequence-1">
+    <uuid>{{ sequence_uuid }}</uuid>
+    <duration>{{ sequence_duration_frames }}</duration>
+    <rate>
+      <timebase>{{ timebase }}</timebase>
+      <ntsc>{{ ntsc }}</ntsc>
+    </rate>
+    <name>{{ sequence_name }}</name>
+    <media>
+      <video>
+        <format>
+          <samplecharacteristics>
+            <rate>
+              <timebase>{{ timebase }}</timebase>
+              <ntsc>{{ ntsc }}</ntsc>
+            </rate>
+            <width>{{ width }}</width>
+            <height>{{ height }}</height>
+            <pixelaspectratio>square</pixelaspectratio>
+          </samplecharacteristics>
+        </format>
+{% for track in video_tracks %}
+        <track>
+{% for clip in track.clips %}
+          <clipitem id="clipitem-{{ clip.id }}">
+            <masterclipid>masterclip-1</masterclipid>
+            <name>{{ clip.name }}</name>
+            <enabled>TRUE</enabled>
+            <duration>{{ source_duration_frames }}</duration>
+            <rate>
+              <timebase>{{ timebase }}</timebase>
+              <ntsc>{{ ntsc }}</ntsc>
+            </rate>
+            <start>{{ clip.timeline_start }}</start>
+            <end>{{ clip.timeline_end }}</end>
+            <in>{{ clip.source_in }}</in>
+            <out>{{ clip.source_out }}</out>
+            <file id="file-1">
+              <name>{{ source_filename }}</name>
+              <pathurl>{{ pathurl }}</pathurl>
+              <rate>
+                <timebase>{{ timebase }}</timebase>
+                <ntsc>{{ ntsc }}</ntsc>
+              </rate>
+              <duration>{{ source_duration_frames }}</duration>
+              <media>
+                <video>
+                  <samplecharacteristics>
+                    <rate>
+                      <timebase>{{ timebase }}</timebase>
+                      <ntsc>{{ ntsc }}</ntsc>
+                    </rate>
+                    <width>{{ width }}</width>
+                    <height>{{ height }}</height>
+                  </samplecharacteristics>
+                </video>
+              </media>
+            </file>
+            <logginginfo>
+              <description>{{ clip.reason }}</description>
+            </logginginfo>
+            <labels>
+              <label2>{{ clip.reason }}</label2>
+            </labels>
+          </clipitem>
+{% endfor %}
+        </track>
+{% endfor %}
+      </video>
+    </media>
+{% for marker in markers %}
+    <marker>
+      <name>{{ marker.name }}</name>
+      <comment>{{ marker.comment }}</comment>
+      <in>{{ marker.frame }}</in>
+      <out>{{ marker.out_frame }}</out>
+    </marker>
+{% endfor %}
+  </sequence>
+</xmeml>
