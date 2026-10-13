@@ -1,0 +1,33 @@
+# GPU override for NVIDIA hosts (requires NVIDIA Container Toolkit).
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+#
+# Prerequisites:
+#   - NVIDIA driver on the host
+#   - nvidia-container-toolkit installed and configured for Docker
+#   - `docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi` works
+services:
+  api:
+    build:
+      context: .
+      args:
+        INSTALL_SILERO: ${INSTALL_SILERO:-0}
+        INSTALL_GIGAAM: ${INSTALL_GIGAAM:-0}
+        ENABLE_CUDA: "1"
+    environment:
+      WHISPER_DEVICE: cuda
+      WHISPER_COMPUTE_TYPE: float16
+      SILERO_DEVICE: cuda
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    # Whisper + CUDA runtime needs more headroom than the CPU default.
+    mem_limit: 6g
+    cpus: "4.0"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

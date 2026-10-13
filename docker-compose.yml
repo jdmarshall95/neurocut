@@ -27,12 +27,22 @@ services:
       GIGAAM_VAD_MODEL: /app/.cache/models/silero_vad.onnx
     volumes:
       - neurocut-storage:/app/storage
+    # Soft caps so a heavy STT/FFmpeg job is less likely to OOM the host.
+    # Raise via override (e.g. docker-compose.gpu.yml) for large Whisper models.
+    mem_limit: 2g
+    cpus: "2.0"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=10)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
 
   frontend:
