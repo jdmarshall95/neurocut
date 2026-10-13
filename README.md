@@ -2,9 +2,9 @@
 
 **AI video editing assistant** — drop in a clip and a text brief, get an automatic rough cut as **FCP7 XML** (Premiere / DaVinci) or ready **MP4 clips**. Powered by Whisper-class STT, scene detection, and Google Gemini.
 
+[![CI](https://github.com/jdmarshall95/neurocut/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jdmarshall95/neurocut/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
-[![Docker](https://img.shields.io/badge/docker-compose-ready-2496ED.svg)](docker-compose.yml)
 [![API docs](https://img.shields.io/badge/API-OpenAPI%20%2F%20Swagger-green.svg)](http://localhost:8000/docs)
 
 > Keywords: AI video editing · automatic video cutting · FCP7 XML · Whisper transcription · Gemini montage · Premiere plugin
