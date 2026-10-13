@@ -4,7 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.api.schemas import (
     AnalysisResultResponse,
@@ -229,10 +229,19 @@ def _run_subtitle_job(
         tracker.fail(job_id, str(exc))
 
 
-@router.get("/health", response_model=HealthResponse)
-async def health() -> HealthResponse:
+@router.get("/health", response_model=HealthResponse, responses={503: {"model": HealthResponse}})
+async def health() -> HealthResponse | JSONResponse:
+    """Detailed readiness probe: storage disk + LLM provider reachability."""
+    from app.services.healthcheck import build_health_payload
+
     settings = get_settings()
-    return HealthResponse(status="ok", app_name=settings.app_name)
+    overall, payload = build_health_payload(settings)
+    response = HealthResponse.model_validate(payload)
+    # Keep HTTP 200 for ok/degraded so Docker/UI health checks stay green when
+    # only optional LLM keys are missing. Unhealthy (e.g. disk nearly full) → 503.
+    if overall == "unhealthy":
+        return JSONResponse(status_code=503, content=response.model_dump())
+    return response
 
 
 @router.post("/jobs/generate", response_model=GenerateStartResponse, status_code=202)

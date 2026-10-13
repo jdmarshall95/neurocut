@@ -1,63 +1,31 @@
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from loguru import logger
 
 from app.api.plugin_routes import router as plugin_router
 from app.api.routes import router
 from app.core.config import Settings, get_settings
-
-logger = logging.getLogger(__name__)
-
-
-def _configure_logging(settings: Settings) -> None:
-    level = logging.DEBUG if settings.debug else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
-        force=True,
-    )
-    logging.getLogger("app").setLevel(level)
-    if settings.suppress_poll_access_logs:
-        _install_quiet_access_log_filter()
-
-
-class _QuietAccessLogFilter(logging.Filter):
-    """Hide noisy status/health polling from uvicorn access logs."""
-
-    _QUIET_MARKERS = (
-        ' "GET /health ',
-        ' "GET /jobs/',
-    )
-    _QUIET_SUFFIXES = (
-        "/status ",
-        "/transcription/status ",
-        "/analysis/status ",
-        "/subtitles/status ",
-    )
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        message = record.getMessage()
-        if not any(marker in message for marker in self._QUIET_MARKERS):
-            return True
-        if ' "GET /health ' in message:
-            return False
-        return not any(suffix in message for suffix in self._QUIET_SUFFIXES)
-
-
-def _install_quiet_access_log_filter() -> None:
-    quiet_filter = _QuietAccessLogFilter()
-    for logger_name in ("uvicorn.access", "uvicorn.error"):
-        logging.getLogger(logger_name).addFilter(quiet_filter)
+from app.core.logging_setup import configure_logging, install_quiet_access_log_filter
+from app.core.metrics import setup_metrics
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    _configure_logging(settings)
+    configure_logging(debug=settings.debug)
+    if settings.suppress_poll_access_logs:
+        install_quiet_access_log_filter()
     settings.ensure_storage()
+    logger.info(
+        "NeuroCut API started app={} debug={} storage={}",
+        settings.app_name,
+        settings.debug,
+        settings.storage_path,
+    )
     yield
+    logger.info("NeuroCut API shutting down")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -84,6 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
+    setup_metrics(app)
     app.include_router(router)
     app.include_router(plugin_router)
     return app

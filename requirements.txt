@@ -10,5 +10,8 @@ pydantic-settings>=2.0.0
 python-multipart>=0.0.12
 python-dotenv>=1.0.0
 requests>=2.32.0
+loguru>=0.7.0
+prometheus-fastapi-instrumentator>=7.0.0
+prometheus-client>=0.21.0
 
 # Dev / CI tools (ruff, pre-commit, pytest): see requirements-dev.txt

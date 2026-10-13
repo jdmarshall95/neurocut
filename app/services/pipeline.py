@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 
 from app.core.config import Settings, get_settings
+from app.core.metrics import observe_stage, record_job
 from app.models.visual_timeline import TimelineSource
 from app.utils.edit_plan_normalize import is_sparse_speech
 from app.services.ai_analyzer import AIAnalysisError, AIAnalyzer
@@ -60,6 +62,9 @@ class PipelineRunner:
         export_mode: ExportMode = "xml",
         reference_source: bool = False,
     ) -> None:
+        started = time.perf_counter()
+        stt_engine = "whisper"
+        outcome = "failed"
         try:
             self.progress.set_stage(job_id, "extracting_audio", export_mode=export_mode)
             processor = MediaProcessor(self.settings)
@@ -81,6 +86,7 @@ class PipelineRunner:
             transcript_path = self.settings.storage_path / job_id / "transcript.json"
             transcriber = Transcriber(self.settings)
             stt_service = STTService(self.settings)
+            stt_engine = stt_service._resolve_engine(None)
 
             if (
                 self.settings.skip_stt_if_transcript_provided
@@ -101,6 +107,7 @@ class PipelineRunner:
                     STTOptions(),
                     job_id=job_id,
                 )
+                stt_engine = stt_transcript.engine or stt_engine
                 transcription_result = transcriber.load_transcript(job_id)
                 if stt_transcript.cached:
                     self.progress.set_stage(
@@ -211,6 +218,7 @@ class PipelineRunner:
                     len(plan.clips),
                     clip_export.zip_path,
                 )
+                outcome = "success"
                 return
 
             if export_mode == "render":
@@ -228,6 +236,7 @@ class PipelineRunner:
                     len(plan.clips),
                     render.render_path,
                 )
+                outcome = "success"
                 return
 
             if export_mode == "plugin":
@@ -255,6 +264,7 @@ class PipelineRunner:
                     len(plan.clips),
                     len(plan.markers),
                 )
+                outcome = "success"
                 return
 
             self.progress.set_stage(job_id, "generating_xml")
@@ -274,6 +284,7 @@ class PipelineRunner:
                 len(plan.markers),
                 export.xml_path,
             )
+            outcome = "success"
         except (
             MediaProcessingError,
             TranscriptionError,
@@ -292,6 +303,17 @@ class PipelineRunner:
             message = f"Unexpected pipeline error: {exc}"
             self.progress.fail(job_id, message)
             self._fail_subtasks(job_id, message)
+        finally:
+            elapsed = time.perf_counter() - started
+            observe_stage("pipeline", elapsed)
+            record_job(status=outcome, engine=stt_engine)
+            logger.info(
+                "[pipeline] job=%s finished status=%s engine=%s elapsed=%.2fs",
+                job_id,
+                outcome,
+                stt_engine,
+                elapsed,
+            )
 
     def _fail_subtasks(self, job_id: str, error: str) -> None:
         transcription = TranscriptionProgressTracker(self.settings).read(job_id)

@@ -8,9 +8,30 @@ from app.services.pipeline_progress import ExportMode, PipelineProgressState
 from app.services.transcription_progress import TranscriptionProgressState
 
 
+class StorageHealthCheck(BaseModel):
+    status: str
+    detail: str
+    path: str
+    free_bytes: int
+    total_bytes: int
+    used_percent: float
+
+
+class LlmHealthCheck(BaseModel):
+    status: str
+    detail: str
+    provider: str
+
+
+class HealthChecks(BaseModel):
+    storage: StorageHealthCheck
+    llm: LlmHealthCheck
+
+
 class HealthResponse(BaseModel):
     status: str
     app_name: str
+    checks: HealthChecks
 
 
 class TranscriptSegmentResponse(BaseModel):

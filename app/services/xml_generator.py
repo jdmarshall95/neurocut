@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 import uuid
 import zipfile
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ import ffmpeg
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from app.core.config import Settings, get_settings
+from app.core.metrics import observe_stage
 from app.models.edit_plan import Clip, EditPlan, Marker
 from app.utils.media_path import build_relative_media_pathurl, resolve_media_filename
 from app.utils.timecode import normalize_fps, seconds_to_frames
@@ -210,6 +212,7 @@ class XMLGenerator:
         return rendered
 
     def generate(self, job_id: str, *, save: bool = True) -> XMLExportResult:
+        started = time.perf_counter()
         job_dir = self._job_dir(job_id)
         if not job_dir.is_dir():
             raise XMLGenerationError(f"Job directory not found: '{job_id}'.")
@@ -281,14 +284,17 @@ class XMLGenerator:
             xml_path.write_text(xml_content, encoding="utf-8")
 
         clip_count = sum(len(track.clips) for track in video_tracks)
+        elapsed = time.perf_counter() - started
+        observe_stage("xml", elapsed)
         logger.info(
-            "[export] job=%s xml=%s clips=%d markers=%d fps=%.3f timebase=%d",
+            "[export] job=%s xml=%s clips=%d markers=%d fps=%.3f timebase=%d elapsed=%.2fs",
             job_id,
             xml_path,
             clip_count,
             len(markers),
             fps,
             timebase,
+            elapsed,
         )
 
         return XMLExportResult(

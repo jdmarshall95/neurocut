@@ -4,12 +4,14 @@ import hashlib
 import json
 import logging
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
 import ffmpeg
 
 from app.core.config import Settings, get_settings
+from app.core.metrics import observe_stage
 from app.services.transcriber import (
     Transcriber,
     TranscriptionError,
@@ -47,6 +49,7 @@ class Transcript(TranscriptionResult):
     has_speech: bool = True
     file_hash: str | None = None
     cached: bool = False
+    engine: str = "whisper"
 
 
 class STTService:
@@ -198,6 +201,7 @@ class STTService:
         *,
         file_hash: str | None,
         cached: bool,
+        engine: str = "whisper",
     ) -> Transcript:
         return Transcript(
             segments=result.segments,
@@ -210,6 +214,7 @@ class STTService:
             has_speech=bool(result.segments),
             file_hash=file_hash,
             cached=cached,
+            engine=engine,
         )
 
     # ------------------------------------------------------------------ #
@@ -227,6 +232,7 @@ class STTService:
         if not source.is_file():
             raise STTServiceError(f"Audio file not found: {source}")
 
+        started = time.perf_counter()
         use_cache = opts.use_cache and self.settings.stt_cache_enabled
         file_hash: str | None = None
         if use_cache:
@@ -237,6 +243,7 @@ class STTService:
                 if job_id is not None:
                     self._write_job_transcript(job_id, cached)
                     self._mark_progress_completed(job_id, cached, from_cache=True)
+                observe_stage("transcription", time.perf_counter() - started)
                 return cached
 
         engine = self._resolve_engine(opts.language)
@@ -268,15 +275,31 @@ class STTService:
                     )
                     engine = "whisper"
                 except TranscriptionError as retry_exc:
+                    observe_stage("transcription", time.perf_counter() - started)
                     raise STTServiceError(str(retry_exc)) from retry_exc
             else:
+                observe_stage("transcription", time.perf_counter() - started)
                 raise STTServiceError(str(exc)) from exc
         finally:
             self.settings.whisper_language = previous_language
 
-        transcript = self._to_transcript(result, file_hash=file_hash, cached=False)
+        transcript = self._to_transcript(
+            result,
+            file_hash=file_hash,
+            cached=False,
+            engine=engine,
+        )
         if use_cache and file_hash is not None:
             self._store_cache(file_hash, transcript)
+        elapsed = time.perf_counter() - started
+        observe_stage("transcription", elapsed)
+        logger.info(
+            "[stt] done job=%s engine=%s segments=%d elapsed=%.2fs cached=false",
+            job_id or "-",
+            engine,
+            len(transcript.segments),
+            elapsed,
+        )
         return transcript
 
     def _mark_progress_completed(
