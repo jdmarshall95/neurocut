@@ -17,8 +17,9 @@
 - [ ] `docker compose up --build` succeeds (if runtime-facing)
 - [ ] Manual smoke: short video + simple brief completes
 - [ ] `ruff check app` (if Python changed)
-- [ ] `cd frontend && npm run build` (if frontend changed)
+- [ ] `cd frontend && npm run lint` / `npm run build` (if frontend changed)
 - [ ] `pytest -q` (if tests added/updated)
+- [ ] GPU path checked with `docker compose -f docker-compose.yml -f docker-compose.gpu.yml config` (if compose/Docker changed)
 
 ## Notes for reviewers
 

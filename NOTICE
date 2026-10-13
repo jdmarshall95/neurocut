@@ -1,13 +1,13 @@
 NeuroCut
-Copyright 2026 NeuroCut Contributors
+Copyright (c) 2026 NeuroCut Contributors
 
-This product includes software developed by NeuroCut Contributors.
+This product is released under the MIT License. See LICENSE.
 
-Third-party components (see their respective licenses):
+Third-party components retain their respective licenses, including but not limited to:
 - FastAPI, Uvicorn, Pydantic — MIT / BSD
 - faster-whisper — MIT
-- FFmpeg — LGPL/GPL (system dependency; not bundled as proprietary code)
+- FFmpeg — LGPL/GPL (system dependency)
 - google-genai — Apache-2.0
 - React, Vite — MIT
 - Adobe CEP / Premiere plugin APIs — Adobe proprietary (plugin code in this
-  repository is Apache-2.0; Adobe products remain under Adobe terms)
+  repository is MIT; Adobe products remain under Adobe terms)

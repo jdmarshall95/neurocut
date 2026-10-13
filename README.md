@@ -1,73 +1,61 @@
 # NeuroCut
 
-**AI video editing assistant** — drop in a clip and a text brief, get an automatic rough cut as **FCP7 XML** (Premiere / DaVinci) or ready **MP4 clips**. Powered by Whisper-class STT, scene detection, and Google Gemini.
-
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/jdmarshall95/neurocut/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jdmarshall95/neurocut/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
-[![API docs](https://img.shields.io/badge/API-OpenAPI%20%2F%20Swagger-green.svg)](http://localhost:8000/docs)
+[![Docker](https://img.shields.io/badge/docker-compose-ready-2496ED.svg)](docker-compose.yml)
+
+**AI video editing assistant** — drop in a clip and a text brief, get an automatic rough cut as **FCP7 XML** (Premiere / DaVinci) or ready **MP4 clips**.
+
+Built with FastAPI, React, FFmpeg, Whisper-class STT, scene detection, and Google Gemini.
 
 > Keywords: AI video editing · automatic video cutting · FCP7 XML · Whisper transcription · Gemini montage · Premiere plugin
 
 ---
 
-## Overview
+## ✨ Features
 
-Manual rough cuts eat hours: scrubbing timelines, marking takes, exporting for mobile editors. **NeuroCut** turns “video + editing brief” into a machine-readable edit plan and exports you can open in a real NLE or share as clips.
+- **Text-brief montage** — describe the cut in natural language; the LLM returns clips + markers
+- **Multi-engine STT** — Whisper / Silero / GigaAM with timestamps and transcript cache
+- **Scene detection** — fast low-res / low-FPS proxy for shot boundaries on every job
+- **Flexible exports** — FCP7 XML, ZIP of MP4 clips, turnkey stitched render, burned-in subtitles
+- **Adobe Premiere Pro CEP plugin** — edit from a local media path (no re-upload)
+- **Docker-first** — one command for CPU; GPU override for CUDA Whisper
+- **Multi-file sources** — assemble several clips into one editorial timeline
 
-```
-Video + brief  →  STT + scene detection  →  LLM edit plan  →  XML / MP4 clips / turnkey render
-```
-
-<!-- DEMO: replace with a 30–60s GIF or hosted MP4 -->
-<!-- ![NeuroCut demo](docs/assets/demo.gif) -->
-
-<p align="center"><em>📷 Place a demo GIF/screenshot here: <code>docs/assets/demo.gif</code></em></p>
-
-<!-- SCREENSHOTS:
-docs/assets/ui-upload.png   — upload + task picker
-docs/assets/ui-progress.png — pipeline progress
-docs/assets/ui-result.png   — download XML / clips
+<!-- Demo placeholder
+![NeuroCut demo](docs/assets/demo.gif)
 -->
 
-## Features
+## 🏗 Architecture
 
-- **Text-brief montage** — describe the cut in natural language; Gemini builds clips + markers
-- **Speech transcription** — Whisper / Silero / GigaAM with timestamps; transcript cache
-- **Scene detection** — fast low-res / low-FPS proxy for shot boundaries
-- **Exports** — FCP7 XML, ZIP of MP4 clips, turnkey stitched render, burned-in subtitles
-- **Adobe Premiere Pro CEP plugin** — edit from a local media path (no re-upload)
-- **Docker-first** — `docker compose up --build` and open the UI
+```
+┌─────────────┐     HTTP      ┌──────────────────────────────┐
+│  React SPA  │ ────────────► │  FastAPI API (:8000)         │
+│   :8501     │               │  /health  /metrics  /docs    │
+└─────────────┘               └──────────────┬───────────────┘
+                                             │
+                    ┌────────────────────────┼────────────────────────┐
+                    ▼                        ▼                        ▼
+               FFmpeg proxy            STT engines              LLM edit plan
+            + scene proxy FPS         Whisper/Silero            Gemini/DeepSeek
+                                             │
+                                             ▼
+                                    storage/ (job artifacts)
+                         XML · MP4 clips · render · subtitles
+```
 
-## Demo
+Diagram asset (optional): place a polished image at [`docs/architecture.png`](docs/architecture.png).  
+More detail: [docs/architecture.md](docs/architecture.md).
 
-| Asset | Status |
-|-------|--------|
-| Screen recording (30–60s) | TODO → `docs/assets/demo.gif` |
-| Annotated UI screenshots | TODO → `docs/assets/` |
-| Sample input + edit_plan.json | TODO → `docs/examples/` |
-
-See the [demo assets plan](docs/demo-assets.md).
-
-## Why Open Source?
-
-NeuroCut should be a **practical tool for editors and developers**, not a black-box SaaS:
-
-- Inspect and fork the montage pipeline (STT → scenes → LLM → export)
-- Swap STT engines and export formats without waiting for a vendor roadmap
-- Run offline-friendly STT (GigaAM / Silero) where privacy matters
-- Learn and teach how AI rough-cutting actually works end-to-end
-
-Commercial use is welcome under **Apache License 2.0** (attribution required; patent grant included).
-
-## Installation
+## 🚀 Quick Start
 
 ### Requirements
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (recommended)
-- [Google Gemini API key](https://aistudio.google.com/apikey)
+- [Docker](https://docs.docker.com/get-docker/) (Compose v2)
+- [Google Gemini API key](https://aistudio.google.com/apikey) (or DeepSeek for text-only tests)
 
-### Quick start
+### CPU (default)
 
 ```bash
 git clone https://github.com/jdmarshall95/neurocut.git
@@ -83,60 +71,68 @@ docker compose up --build
 | **UI** | http://localhost:8501 |
 | **API** | http://localhost:8000 |
 | **Swagger** | http://localhost:8000/docs |
+| **Metrics** | http://localhost:8000/metrics |
 
-Stop: `docker compose down` · wipe job storage: `docker compose down -v`
+### GPU (NVIDIA)
 
-Local (non-Docker) setup: [CONTRIBUTING.md](CONTRIBUTING.md).
+Requires [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the host.
 
-## Usage
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+```
+
+This sets `WHISPER_DEVICE=cuda` and `WHISPER_COMPUTE_TYPE=float16`.
+
+### First edit
 
 1. Open http://localhost:8501
-2. Pick a task: **transcribe**, **turnkey clip**, **subtitles**, **NLE XML**, or **mobile clips**
-3. Upload video (MP4 / MOV / MKV / AVI / WebM) — multi-file montage supported
-4. For montage, write a short brief, e.g. *“Keep 3–4s clean talking-head beats, drop filler”*
-5. Download transcript, XML, ZIP clips, or rendered MP4
+2. Choose a task (transcribe, turnkey clip, subtitles, NLE XML, or mobile clips)
+3. Upload video + write a short brief
+4. Download XML, ZIP clips, or rendered MP4
+
+Stop: `docker compose down` · wipe job storage: `docker compose down -v`  
+Local (non-Docker) setup: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## 🛡 Production Readiness
+
+NeuroCut is wired for operator-friendly deploys, not just a demo script:
+
+| Capability | What you get |
+|------------|----------------|
+| **CI/CD** | GitHub Actions — lint (Ruff + TypeScript), frontend build, Docker image build checks |
+| **Metrics** | Prometheus via `/metrics` — HTTP stats + `neurocut_jobs_total`, `neurocut_processing_duration_seconds` |
+| **Logging** | Loguru — colored DEBUG logs locally; structured **JSON** in production (`DEBUG=false`) |
+| **Health** | `GET /health` — storage disk space + LLM provider probe (`ok` / `degraded` / `unhealthy`) |
+| **Resources** | Compose `mem_limit` / `cpus` on the API service to reduce OOM risk |
+| **GPU path** | Optional `docker-compose.gpu.yml` for CUDA Whisper |
+
+## Usage notes
 
 **Premiere plugin:** `./scripts/install_premiere_plugin.sh` → Window → Extensions → NeuroCut.  
-Details: [docs/plugin-development.md](docs/plugin-development.md).
+See [docs/plugin-development.md](docs/plugin-development.md).
 
 ### Useful env vars
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `GEMINI_API_KEY` | Gemini access | required |
+| `GEMINI_API_KEY` | Gemini access | required for Gemini |
 | `LLM_PROVIDER` | `auto` / `gemini` / `deepseek` | `auto` |
 | `STT_ENGINE` | `whisper` / `silero` / `gigaam` / `auto` | `whisper` |
 | `WHISPER_MODEL` | Whisper size | `base` |
-| `USE_VIDEO_FOR_LLM` | Upload proxy to Gemini | `false` (text-out models) |
+| `USE_VIDEO_FOR_LLM` | Upload proxy to Gemini | `false` |
 | `SCENE_PROXY_FPS` | Scene-detect FPS | `12` |
 
 Full list: [`.env.example`](.env.example) · [`app/core/config.py`](app/core/config.py).
 
-## Architecture
-
-```
-┌─────────────┐     HTTP      ┌─────────────┐
-│  React SPA  │ ────────────► │   FastAPI   │
-│   :8501     │               │    :8000    │
-└─────────────┘               └──────┬──────┘
-                                     │
-              FFmpeg · STT · Scene detect · Gemini/DeepSeek
-                                     │
-                              storage/ (volume)
-```
-
-More detail: [docs/architecture.md](docs/architecture.md) · historical notes: [IMPLEMENTATION.md](IMPLEMENTATION.md).
-
 ## Roadmap
 
 - [ ] Broader export: EDL / FCPXML / Resolve markers
-- [ ] Stronger hybrid montage (transcript + scenes + optional vision models)
-- [ ] Quality filters for “no blur / stable shot” heuristics
-- [ ] GPU Whisper path and smaller default images
+- [ ] Stronger hybrid montage (transcript + scenes + optional vision)
+- [ ] Quality heuristics for stable / sharp shots
+- [ ] Smaller default images + documented GPU CI
 - [ ] Public demo dataset + regression fixtures
-- [ ] Multi-language UI
 
-Track work in [Issues](../../issues). Ideas welcome.
+Track work in [Issues](https://github.com/jdmarshall95/neurocut/issues).
 
 ## Contributing
 
@@ -153,12 +149,11 @@ Contributions are welcome — bugs, docs, STT engines, export formats, plugin UX
 - [Google Gemini](https://ai.google.dev/)
 - [FastAPI](https://fastapi.tiangolo.com/) · [React](https://react.dev/) · [Vite](https://vitejs.dev/)
 - GigaAM / Silero communities for offline STT options
-- Everyone who files issues, shares cuts, and sends PRs
 
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for third-party attributions.
+Licensed under the [MIT License](LICENSE).
 
 ```
-Copyright 2026 NeuroCut Contributors
+Copyright (c) 2026 NeuroCut Contributors
 ```
