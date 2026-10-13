@@ -48,7 +48,7 @@ print('Silero models preloaded')"; fi
 COPY scripts ./scripts
 RUN if [ "$INSTALL_GIGAAM" = "1" ]; then python scripts/download_gigaam.py --dest /app/.cache/models; fi
 
-# Custom subtitle fonts (Cyrillic-capable) bundled for burn-in + UI preview.
+# Custom subtitle fonts bundled for burn-in + UI preview.
 COPY assets/fonts /usr/share/fonts/neurocut
 RUN fc-cache -f /usr/share/fonts/neurocut
 

@@ -1,0 +1,24 @@
+---
+description: All project code, comments, and documentation must be English
+alwaysApply: true
+---
+
+# English-only project language
+
+NeuroCut is an English-first open-source repository.
+
+## Required
+
+- Write **all** new and edited source code comments, docstrings, UI strings, commit messages, CI config comments, and documentation in **English**.
+- Do not add Cyrillic text or Russian-language product copy to the repo.
+- Prefer English terms in user-facing UI (`brief` instead of `ТЗ`, `clip` instead of `ролик`, etc.).
+
+## Allowed exceptions
+
+- Upstream artifact names and paths that cannot be renamed (e.g. `gigaam-ru/`, vendor archive URLs).
+- ISO language codes used as technical values (`ru`, `en`) in STT routing or config — without Russian prose around them.
+- Content inside user-uploaded media / transcripts at runtime (not committed).
+
+## When editing
+
+If you touch a file that still contains non-English project prose, translate it to English in the same change when practical.

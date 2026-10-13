@@ -1,0 +1,5 @@
+# Development / CI tooling (not required in the production API image).
+-r requirements.txt
+ruff>=0.11.0
+pre-commit>=4.0.0
+pytest>=8.0.0

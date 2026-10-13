@@ -36,9 +36,9 @@ docker compose up --build
 ```bash
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-pip install ruff pytest     # dev tools
+pip install -r requirements-dev.txt   # includes runtime deps + ruff/pre-commit/pytest
 cp .env.example .env
+pre-commit install
 
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -46,6 +46,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```bash
 cd frontend
 npm install
+npm run lint                # tsc --noEmit
 npm run dev                 # http://localhost:8501
 ```
 
@@ -55,18 +56,20 @@ Optional STT extras: `requirements-silero.txt`, `requirements-gigaam.txt`.
 
 | Area | Tool | Notes |
 |------|------|--------|
-| Python | **Ruff** | lint + format; target `app/` |
+| Python | **Ruff** | lint via CI and pre-commit; target `app/` |
 | Python types | prefer type hints on public APIs | |
-| Frontend | TypeScript strict + Vite build | `npm run build` must pass |
-| Frontend format | Prettier (optional locally) | match existing Tailwind style |
+| Frontend | TypeScript strict + Vite | `npm run lint` and `npm run build` must pass |
+| Frontend format | **Prettier** (pre-commit) | files under `frontend/` |
 
 ```bash
+# Hooks (ruff, prettier, trailing whitespace)
+pre-commit run --all-files
+
 # Python
 ruff check app
-ruff format app
 
 # Frontend
-cd frontend && npm run build
+cd frontend && npm run lint && npm run build
 ```
 
 Keep PRs focused. Prefer small, reviewable changes over large refactors.
