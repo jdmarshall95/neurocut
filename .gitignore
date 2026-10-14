@@ -65,3 +65,7 @@ test-results/
 # Logs
 *.log
 logs/
+
+# Local identity pins (do not publish)
+.mailmap
+.cursor/rules/git-author.mdc
