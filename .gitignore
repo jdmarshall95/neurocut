@@ -6,6 +6,12 @@
 # Runtime / media artifacts (job storage)
 storage/*
 !storage/.gitkeep
+!storage/models/.gitkeep
+storage/models/**
+!storage/models/.gitkeep
+
+# Local test media / capture inputs (not part of the public repo)
+storage/test-input/
 
 # Python
 __pycache__/
@@ -30,8 +36,17 @@ transcription_progress.json
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+*.tsbuildinfo
 npm-debug.log*
 yarn-error.log*
+
+# Spurious root lockfile (real lockfile lives in frontend/)
+/package-lock.json
+
+# Demo capture intermediates (script-generated; keep final gif/mp4/png in docs/assets)
+scripts/capture-ui-demo.frames.txt
+scripts/*.frames.txt
+/tmp/shot/
 
 # IDE / OS
 .idea/
@@ -41,10 +56,11 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Local model caches (large binaries)
+# Local model / tool caches
 .cache/
-storage/models/**
-!storage/models/.gitkeep
+.playwright/
+playwright-report/
+test-results/
 
 # Logs
 *.log

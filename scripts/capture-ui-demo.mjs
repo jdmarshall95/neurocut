@@ -10,8 +10,9 @@
 // Requires: docker compose up, Playwright + Chromium, ffmpeg on PATH.
 //   node scripts/capture-ui-demo.mjs
 //
-// The GIF/MP4 playlist is assembled from the PNGs with the concat list in
-// scripts/capture-ui-demo.frames.txt:
+// After screenshots land in docs/assets/, build the GIF/MP4 from a local
+// (gitignored) concat list, e.g.:
+//   scripts/capture-ui-demo.frames.txt  →  docs/assets/neurocut-demo.gif
 //   ffmpeg -y -v error -f concat -safe 0 -i scripts/capture-ui-demo.frames.txt \
 //     -vf "scale=960:-2:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128:stats_mode=diff[p];[s1][p]paletteuse=dither=bayer:bayer_scale=4" \
 //     -loop 0 docs/assets/neurocut-demo.gif
