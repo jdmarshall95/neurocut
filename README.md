@@ -15,11 +15,9 @@
 
 Built with FastAPI, React, FFmpeg, Whisper-class STT, scene detection, and Google Gemini.
 
-> Keywords: AI video editing · automatic video cutting · FCP7 XML · Whisper transcription · Gemini montage · Premiere plugin
-
 ---
 
-## ✨ Features
+## Features
 
 - **Text-brief montage** — describe the cut in natural language; the LLM returns clips + markers
 - **Multi-engine STT** — Whisper / Silero / GigaAM with timestamps and transcript cache
@@ -29,7 +27,7 @@ Built with FastAPI, React, FFmpeg, Whisper-class STT, scene detection, and Googl
 - **Docker-first** — one command for CPU; GPU override for CUDA Whisper
 - **Multi-file sources** — assemble several clips into one editorial timeline
 
-## 🎬 Pipeline walkthrough
+## Pipeline walkthrough
 
 A real end-to-end run on a public test clip — the [Sintel trailer](https://media.w3.org/2010/05/sintel/trailer.mp4)
 (52 s, 854×480, H.264 + AAC) — submitted through the UI with `export_mode = render` and the brief:
@@ -74,7 +72,7 @@ and `analysis_mode = speech`.
 > Reproduce the run: `docker compose up --build`, open http://localhost:8501, drop in any MP4 with speech,
 > type a brief and press **Build clip**.
 
-## 🏗 Architecture
+## Architecture
 
 ```
 ┌─────────────┐     HTTP      ┌──────────────────────────────┐
@@ -92,10 +90,9 @@ and `analysis_mode = speech`.
                          XML · MP4 clips · render · subtitles
 ```
 
-Diagram asset (optional): place a polished image at [`docs/architecture.png`](docs/architecture.png).  
 More detail: [docs/architecture.md](docs/architecture.md).
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Requirements
 
@@ -140,18 +137,16 @@ This sets `WHISPER_DEVICE=cuda` and `WHISPER_COMPUTE_TYPE=float16`.
 Stop: `docker compose down` · wipe job storage: `docker compose down -v`  
 Local (non-Docker) setup: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 🛡 Production Readiness
+## Ops
 
-NeuroCut is wired for operator-friendly deploys, not just a demo script:
-
-| Capability | What you get |
-|------------|----------------|
-| **CI/CD** | GitHub Actions — lint (Ruff + TypeScript), frontend build, Docker image build checks |
-| **Metrics** | Prometheus via `/metrics` — HTTP stats + `neurocut_jobs_total`, `neurocut_processing_duration_seconds` |
-| **Logging** | Loguru — colored DEBUG logs locally; structured **JSON** in production (`DEBUG=false`) |
-| **Health** | `GET /health` — storage disk space + LLM provider probe (`ok` / `degraded` / `unhealthy`) |
-| **Resources** | Compose `mem_limit` / `cpus` on the API service to reduce OOM risk |
-| **GPU path** | Optional `docker-compose.gpu.yml` for CUDA Whisper |
+| Capability | Detail |
+|------------|--------|
+| **CI** | GitHub Actions — Ruff, TypeScript, frontend build, Docker image build |
+| **Metrics** | Prometheus `/metrics` — HTTP + `neurocut_jobs_total`, `neurocut_processing_duration_seconds` |
+| **Logging** | Loguru (DEBUG locally; JSON when `DEBUG=false`) |
+| **Health** | `GET /health` — disk + LLM probe (`ok` / `degraded` / `unhealthy`) |
+| **Resources** | Compose `mem_limit` / `cpus` on the API service |
+| **GPU** | Optional `docker-compose.gpu.yml` for CUDA Whisper |
 
 ## Usage notes
 

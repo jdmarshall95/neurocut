@@ -9,13 +9,17 @@ This project aims to follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Open-source release kit: MIT LICENSE, CONTRIBUTING, CoC, SECURITY
-- GitHub issue/PR templates and lightweight CI
+- MIT LICENSE, CONTRIBUTING, CoC, SECURITY
+- GitHub issue/PR templates and CI
 - Developer docs under `docs/`
-- Scene-detection proxy (`proxy_scenes.mp4`, low FPS) used on every montage job
+- Scene-detection proxy (`proxy_scenes.mp4`, low FPS) on every montage job
 - Docker resource limits, GPU compose override, Prometheus metrics, structured logging
 
 ### Changed
 
 - Default montage path prefers text-out Gemini models + shot timeline (no video upload by default)
-- Public LICENSE switched to MIT for simpler redistribution
+- LICENSE switched to MIT
+
+### Removed
+
+- Bootstrap AI scaffolding docs (`PRD.md`, `IMPLEMENTATION.md`, `STRUCTURE.md`, `JSON_SCHEMA.md`)
