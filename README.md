@@ -11,7 +11,7 @@
   </a>
 </p>
 
-**AI video editing assistant** — drop in a clip and a text brief, get an automatic rough cut as **FCP7 XML** (Premiere / DaVinci) or ready **MP4 clips**.
+**AI video editing assistant** — drop in a clip and a text brief, get an automatic rough cut as **FCP7 XML** (Premiere / DaVinci), a **ZIP of MP4 clips**, or a stitched **turnkey MP4**.
 
 Built with FastAPI, React, FFmpeg, Whisper-class STT, scene detection, and Google Gemini.
 
@@ -19,31 +19,67 @@ Built with FastAPI, React, FFmpeg, Whisper-class STT, scene detection, and Googl
 
 ## Features
 
-- **Text-brief montage** — describe the cut in natural language; the LLM returns clips + markers
-- **Multi-engine STT** — Whisper / Silero / GigaAM with timestamps and transcript cache
-- **Scene detection** — fast low-res / low-FPS proxy for shot boundaries on every job
-- **Flexible exports** — FCP7 XML, ZIP of MP4 clips, turnkey stitched render, burned-in subtitles
-- **Adobe Premiere Pro CEP plugin** — edit from a local media path (no re-upload)
-- **Docker-first** — one command for CPU; GPU override for CUDA Whisper
+- **Text-brief montage** — natural-language brief → LLM edit plan (clips + markers)
+- **Multi-engine STT** — Whisper / Silero / GigaAM with timestamps and audio-hash cache
+- **Scene detection on every job** — low-res / low-FPS proxy; then `speech` or `visual` analysis mode
+- **One export mode per job** — FCP7 XML, clips ZIP, or turnkey render (mutually exclusive)
+- **Burned-in subtitles** — separate post-job API, not part of the main pipeline
+- **Premiere CEP plugin** — apply the plan from a local media path (`export_mode=plugin`)
 - **Multi-file sources** — assemble several clips into one editorial timeline
+- **Docker-first** — CPU by default; optional GPU override for CUDA Whisper
 
-## Pipeline walkthrough
+## Pipeline
 
-A real end-to-end run on a public test clip — the [Sintel trailer](https://media.w3.org/2010/05/sintel/trailer.mp4)
-(52 s, 854×480, H.264 + AAC) — submitted through the UI with `export_mode = render` and the brief:
+Orchestrator: `PipelineRunner` in [`app/services/pipeline.py`](app/services/pipeline.py). Stages run **sequentially**.
+
+```mermaid
+flowchart TD
+  Upload["Upload 1..N videos + prompt<br/>export_mode"] --> MP["MediaProcessor"]
+
+  MP -->|"N = 1"| Single["original + audio.wav<br/>proxy_480p.mp4 + proxy_scenes.mp4"]
+  MP -->|"N ≥ 2"| Multi["sources/* assembly<br/>+ sources_manifest.json"]
+
+  Single --> STT
+  Multi --> STT
+
+  STT{"Transcript"} -->|"uploaded"| Skip["load transcript, skip STT"]
+  STT -->|"has audio"| Run["STTService → transcript.json<br/>optional cache hit"]
+  STT -->|"no audio"| Empty["empty transcript<br/>force visual"]
+
+  Skip --> Mode
+  Run --> Mode
+  Empty --> Mode
+
+  Mode{"analysis_mode"} --> Scenes["SceneDetector → visual_timeline.json<br/>always"]
+  Scenes --> AI["AIAnalyzer → edit_plan.json<br/>Gemini / DeepSeek"]
+
+  AI --> Exp{"export_mode"}
+  Exp -->|xml| XML["XMLGenerator → neurocut_export.xml"]
+  Exp -->|clips| Clips["ClipExporter → neurocut_clips.zip"]
+  Exp -->|render| Render["VideoRenderer → neurocut_render.mp4"]
+  Exp -->|plugin| Plugin["plan only → Premiere CEP"]
+```
+
+`SubtitleBurner` is a separate endpoint (`POST /jobs/{id}/subtitles/render`), not a pipeline stage.
+
+More detail: [docs/architecture.md](docs/architecture.md).
+
+### Walkthrough
+
+End-to-end run on the [Sintel trailer](https://media.w3.org/2010/05/sintel/trailer.mp4)
+(52 s) with `export_mode = render` and brief:
 
 > *"Cut a 30 second cinematic teaser: keep the emotional narration and the most dramatic wide shots, drop slow dialogue scenes."*
 
-The pipeline finished in **~35 s** and produced a stitched `neurocut_render.mp4` with **4 clips**, **2 markers**
-and `analysis_mode = speech`.
+Finished in **~35 s** → `neurocut_render.mp4`, **4 clips**, **2 markers**, `analysis_mode = speech`.
 
 | # | Stage | What happens | Cold-run time |
 |---|-------|--------------|---------------|
-| 1 | `extracting_audio` | FFmpeg builds a 480p proxy and extracts the audio track | ~15 s |
-| 2 | `transcribing` | Whisper-class STT with word timestamps (content-addressable cache) | ~5 s |
-| 3 | `analyzing_scenes` | Low-FPS / low-res scene detection for shot boundaries | ~0.2 s |
-| 4 | `ai_editing` | Gemini turns the brief + transcript into an edit plan (clips + markers) | ~2 s |
-| 5 | `rendering_clip` | Clips are stitched into one turnkey MP4 | ~13 s |
+| 1 | `extracting_audio` | FFmpeg: audio + 480p proxy + scene proxy | ~15 s |
+| 2 | `transcribing` | Whisper-class STT (content-addressable cache) | ~5 s |
+| 3 | `analyzing_scenes` | Low-FPS scene detection | ~0.2 s |
+| 4 | `ai_editing` | Gemini → edit plan | ~2 s |
+| 5 | `rendering_clip` | Stitch turnkey MP4 | ~13 s |
 
 <details>
 <summary><b>Stage-by-stage screenshots</b></summary>
@@ -69,29 +105,6 @@ and `analysis_mode = speech`.
 
 </details>
 
-> Reproduce the run: `docker compose up --build`, open http://localhost:8501, drop in any MP4 with speech,
-> type a brief and press **Build clip**.
-
-## Architecture
-
-```
-┌─────────────┐     HTTP      ┌──────────────────────────────┐
-│  React SPA  │ ────────────► │  FastAPI API (:8000)         │
-│   :8501     │               │  /health  /metrics  /docs    │
-└─────────────┘               └──────────────┬───────────────┘
-                                             │
-                    ┌────────────────────────┼────────────────────────┐
-                    ▼                        ▼                        ▼
-               FFmpeg proxy            STT engines              LLM edit plan
-            + scene proxy FPS         Whisper/Silero            Gemini/DeepSeek
-                                             │
-                                             ▼
-                                    storage/ (job artifacts)
-                         XML · MP4 clips · render · subtitles
-```
-
-More detail: [docs/architecture.md](docs/architecture.md).
-
 ## Quick Start
 
 ### Requirements
@@ -115,45 +128,30 @@ docker compose up --build
 | **UI** | http://localhost:8501 |
 | **API** | http://localhost:8000 |
 | **Swagger** | http://localhost:8000/docs |
-| **Metrics** | http://localhost:8000/metrics |
 
 ### GPU (NVIDIA)
 
-Requires [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the host.
+Requires [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 ```
 
-This sets `WHISPER_DEVICE=cuda` and `WHISPER_COMPUTE_TYPE=float16`.
+Sets `WHISPER_DEVICE=cuda` and `WHISPER_COMPUTE_TYPE=float16`.
 
 ### First edit
 
 1. Open http://localhost:8501
-2. Choose a task (transcribe, turnkey clip, subtitles, NLE XML, or mobile clips)
-3. Upload video + write a short brief
-4. Download XML, ZIP clips, or rendered MP4
+2. Choose a task (turnkey clip, NLE XML, mobile clips, …)
+3. Upload video + brief → download the export for that mode
 
-Stop: `docker compose down` · wipe job storage: `docker compose down -v`  
-Local (non-Docker) setup: [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Ops
-
-| Capability | Detail |
-|------------|--------|
-| **CI** | GitHub Actions — Ruff, TypeScript, frontend build, Docker image build |
-| **Metrics** | Prometheus `/metrics` — HTTP + `neurocut_jobs_total`, `neurocut_processing_duration_seconds` |
-| **Logging** | Loguru (DEBUG locally; JSON when `DEBUG=false`) |
-| **Health** | `GET /health` — disk + LLM probe (`ok` / `degraded` / `unhealthy`) |
-| **Resources** | Compose `mem_limit` / `cpus` on the API service |
-| **GPU** | Optional `docker-compose.gpu.yml` for CUDA Whisper |
+Stop: `docker compose down` · wipe storage: `docker compose down -v`  
+Local setup: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Usage notes
 
 **Premiere plugin:** `./scripts/install_premiere_plugin.sh` → Window → Extensions → NeuroCut.  
 See [docs/plugin-development.md](docs/plugin-development.md).
-
-### Useful env vars
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
@@ -166,31 +164,13 @@ See [docs/plugin-development.md](docs/plugin-development.md).
 
 Full list: [`.env.example`](.env.example) · [`app/core/config.py`](app/core/config.py).
 
-## Roadmap
-
-- [ ] Broader export: EDL / FCPXML / Resolve markers
-- [ ] Stronger hybrid montage (transcript + scenes + optional vision)
-- [ ] Quality heuristics for stable / sharp shots
-- [ ] Smaller default images + documented GPU CI
-- [ ] Public demo dataset + regression fixtures
-
-Track work in [Issues](https://github.com/jdmarshall95/neurocut/issues).
+CI runs Ruff, TypeScript, frontend build, and Docker image build. Metrics: `GET /metrics`. Health: `GET /health`.
 
 ## Contributing
-
-Contributions are welcome — bugs, docs, STT engines, export formats, plugin UX.
 
 1. Read [CONTRIBUTING.md](CONTRIBUTING.md)
 2. Follow the [Code of Conduct](CODE_OF_CONDUCT.md)
 3. Open a PR with a clear description and smoke-test notes
-
-## Acknowledgments
-
-- [faster-whisper](https://github.com/SYSTRAN/faster-whisper) / OpenAI Whisper
-- [FFmpeg](https://ffmpeg.org/)
-- [Google Gemini](https://ai.google.dev/)
-- [FastAPI](https://fastapi.tiangolo.com/) · [React](https://react.dev/) · [Vite](https://vitejs.dev/)
-- GigaAM / Silero communities for offline STT options
 
 ## License
 

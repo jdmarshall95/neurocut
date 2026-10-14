@@ -2,26 +2,38 @@
 
 ## High-level flow
 
+Orchestrator: `PipelineRunner` (`app/services/pipeline.py`). All stages are **sequential**. Export modes are **mutually exclusive**.
+
 ```
-Upload (1..N videos) + prompt
+Upload (1..N videos) + prompt + export_mode
         │
         ▼
- MediaProcessor ──► audio.wav + proxy_480p.mp4 + proxy_scenes.mp4
+ MediaProcessor
+   · single → original + audio.wav + proxy_480p.mp4 + proxy_scenes.mp4
+   · multi  → sources/* assembly + sources_manifest.json (+ same top-level artifacts)
         │
         ▼
- STTService ──────► transcript.json (cached by audio hash)
+ Transcript branch
+   · uploaded transcript → skip STT
+   · has audio           → STTService → transcript.json (cache by audio hash)
+   · no audio            → empty transcript, force analysis_mode=visual
         │
         ▼
- SceneDetector ───► visual_timeline.json (always, via low-FPS proxy)
+ analysis_mode = speech | visual  (sparse / missing speech → visual)
         │
         ▼
- AIAnalyzer ──────► edit_plan.json (Gemini / DeepSeek, usually text-only)
+ SceneDetector ──► visual_timeline.json  (always, via proxy_scenes.mp4)
         │
-        ├── XMLGenerator      → neurocut_export.xml
-        ├── ClipExporter      → clips ZIP
-        ├── VideoRenderer     → turnkey MP4
-        └── SubtitleBurner    → burned-in subtitles
+        ▼
+ AIAnalyzer ──────► edit_plan.json  (Gemini / DeepSeek; usually text-only)
+        │
+        ├── export_mode=xml    → XMLGenerator   → neurocut_export.xml
+        ├── export_mode=clips  → ClipExporter   → neurocut_clips.zip
+        ├── export_mode=render → VideoRenderer  → neurocut_render.mp4
+        └── export_mode=plugin → plan only for Premiere CEP
 ```
+
+`SubtitleBurner` is **not** part of `PipelineRunner`. It runs via a separate API after a job has a transcript / plan.
 
 ## Packages
 
@@ -39,10 +51,11 @@ Upload (1..N videos) + prompt
 
 Each job id under `storage/<job_id>/` typically contains:
 
-- `sources/` + `sources_manifest.json` (multi-cam / multi-clip assembly)
+- `sources/` + `sources_manifest.json` (multi-clip assembly)
+- `audio.wav`, `proxy_480p.mp4`, `proxy_scenes.mp4`
 - `transcript.json`, `visual_timeline.json`, `edit_plan.json`
 - `pipeline_progress.json` (+ analysis / transcription progress)
-- Export artifacts (`neurocut_export.xml`, `neurocut_clips.zip`, …)
+- One export artifact per mode (`neurocut_export.xml`, `neurocut_clips.zip`, or `neurocut_render.mp4`)
 
 ## Decision log
 
